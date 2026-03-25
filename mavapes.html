@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>MAVAPES</title>
+
+<style>
+body{
+font-family:Arial;
+margin:0;
+background:#0f172a;
+color:white;
+}
+
+.section{ display:none; padding:30px; text-align:center; }
+.active{ display:block; }
+
+button{
+padding:10px 20px;
+margin:10px;
+border:none;
+background:#22c55e;
+color:white;
+border-radius:6px;
+cursor:pointer;
+}
+button:hover{ background:#16a34a; }
+
+input,select{ padding:10px; margin:10px; width:200px; }
+
+header{
+background:black;
+padding:20px;
+font-size:28px;
+}
+
+.cart{
+position:fixed;
+top:20px;
+right:20px;
+background:#22c55e;
+padding:10px;
+border-radius:8px;
+cursor:pointer;
+}
+
+.grid{
+display:grid;
+grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
+gap:20px;
+margin-top:20px;
+}
+
+.card{
+background:#1e293b;
+padding:15px;
+border-radius:10px;
+}
+</style>
+</head>
+
+<body>
+
+<!-- HOME -->
+<div id="home" class="section active">
+<h1>🔥 Welcome to MAVAPES 🔥</h1>
+<button onclick="showSection('login')">Login</button>
+<button onclick="showSection('register')">Register</button>
+<button onclick="showSection('adminLogin')">Admin</button>
+</div>
+
+<!-- LOGIN -->
+<div id="login" class="section">
+<h2>Login</h2>
+<input id="username" placeholder="Username"><br>
+<input type="password" id="password"><br>
+<button onclick="login()">Login</button>
+<button onclick="showSection('home')">Back</button>
+</div>
+
+<!-- REGISTER -->
+<div id="register" class="section">
+<h2>Register</h2>
+<input id="newuser"><br>
+<input type="password" id="newpass"><br>
+<button onclick="register()">Register</button>
+<button onclick="showSection('home')">Back</button>
+</div>
+
+<!-- ADMIN LOGIN -->
+<div id="adminLogin" class="section">
+<h2>Admin Login</h2>
+<input id="adminUser"><br>
+<input type="password" id="adminPass"><br>
+<button onclick="adminLogin()">Login</button>
+<button onclick="showSection('home')">Back</button>
+</div>
+
+<!-- ADMIN PANEL -->
+<div id="adminPanel" class="section">
+<h2>⚙️ ADMIN PANEL</h2>
+
+<input id="prodName" placeholder="Product Name"><br>
+<input type="number" id="prodPrice" placeholder="Price"><br>
+<input type="file" id="prodImage"><br>
+
+<select id="prodCategory">
+<option value="vapes">Vapes</option>
+<option value="juices">Juices</option>
+<option value="disposable">Disposable</option>
+<option value="modAccessories">Accessories</option>
+</select><br>
+
+<button onclick="addProduct()">Add Product</button>
+
+<h3>Products</h3>
+<ul id="adminProducts"></ul>
+
+<button onclick="adminLogout()">Logout</button>
+</div>
+
+<!-- SHOP -->
+<div id="shop" class="section">
+<header>MAVAPES</header>
+
+<div class="cart" onclick="openCart()">
+🛒 <span id="cartCount">0</span>
+</div>
+
+<h2>Products</h2>
+<div class="grid" id="vapes"></div>
+<div class="grid" id="juices"></div>
+<div class="grid" id="disposable"></div>
+<div class="grid" id="modAccessories"></div>
+
+<button onclick="logout()">Logout</button>
+</div>
+
+<script>
+let currentUser=null
+let cart=[]
+
+// STORAGE
+function getProducts(){
+return JSON.parse(localStorage.getItem("products") || "[]")
+}
+function saveProducts(data){
+localStorage.setItem("products", JSON.stringify(data))
+}
+
+// NAV
+function showSection(id){
+document.querySelectorAll(".section").forEach(s=>s.classList.remove("active"))
+document.getElementById(id).classList.add("active")
+}
+
+// AUTH
+function register(){
+let u=newuser.value,p=newpass.value
+if(!u||!p)return alert("Fill all")
+localStorage.setItem("user_"+u,JSON.stringify({p}))
+alert("Registered")
+showSection("login")
+}
+
+function login(){
+let u=username.value,p=password.value
+let d=JSON.parse(localStorage.getItem("user_"+u)||"{}")
+if(d.p===p){currentUser=u;showSection("shop");displayProducts()}
+else alert("Wrong login")
+}
+
+function logout(){currentUser=null;showSection("home")}
+
+// ADMIN
+function adminLogin(){
+if(adminUser.value==="admin"&&adminPass.value==="1234"){
+showSection("adminPanel")
+loadAdminProducts()
+}else alert("Wrong admin")
+}
+
+function adminLogout(){showSection("home")}
+
+// DISPLAY PRODUCTS
+function displayProducts(){
+["vapes","juices","disposable","modAccessories"].forEach(id=>{
+document.getElementById(id).innerHTML=""
+})
+
+let products=getProducts()
+
+products.forEach((p,i)=>{
+let box=document.getElementById(p.category)
+if(!box)return
+
+let card=document.createElement("div")
+card.className="card"
+
+card.innerHTML=`
+<img src="${p.image}" style="width:100%;height:150px;object-fit:cover;border-radius:10px;">
+<h3>${p.name}</h3>
+<p>₱${p.price}</p>
+<p>Stock: ${p.stock}</p>
+<button ${p.stock<=0?"disabled":""} onclick="addCart(${i})">
+${p.stock<=0?"Out of Stock":"Add"}
+</button>
+`
+
+box.appendChild(card)
+})
+}
+
+// CART
+function addCart(index){
+let products=getProducts()
+let p=products[index]
+
+if(p.stock<=0)return alert("Out of stock")
+
+let item=cart.find(i=>i.index===index)
+if(item)item.qty++
+else cart.push({index,qty:1})
+
+updateCart()
+}
+
+function updateCart(){
+let count=0
+cart.forEach(i=>count+=i.qty)
+document.getElementById("cartCount").innerText=count
+}
+
+function openCart(){ alert("Cart items: "+cart.length) }
+
+// ADD PRODUCT
+function addProduct(){
+let name=prodName.value
+let price=parseInt(prodPrice.value)
+let category=prodCategory.value
+let file=prodImage.files[0]
+let stock=parseInt(prompt("Enter stock quantity:"))
+
+if(!name||!price||!file||!stock)return alert("Fill all")
+
+let reader=new FileReader()
+reader.onload=e=>{
+let products=getProducts()
+
+products.push({
+name,
+price,
+category,
+stock,
+image:e.target.result
+})
+
+saveProducts(products)
+displayProducts()
+loadAdminProducts()
+}
+reader.readAsDataURL(file)
+}
+
+// ADMIN LIST
+function loadAdminProducts(){
+let list=adminProducts
+list.innerHTML=""
+
+let products=getProducts()
+
+products.forEach((p,i)=>{
+let li=document.createElement("li")
+li.innerHTML=`
+${p.name} ₱${p.price} (Stock:${p.stock})
+<button onclick="editProduct(${i})">Edit</button>
+<button onclick="deleteProduct(${i})">Delete</button>
+`
+list.appendChild(li)
+})
+}
+
+// DELETE
+function deleteProduct(i){
+let products=getProducts()
+products.splice(i,1)
+saveProducts(products)
+displayProducts()
+loadAdminProducts()
+}
+
+// EDIT
+function editProduct(i){
+let products=getProducts()
+let p=products[i]
+
+let n=prompt("Name:",p.name)
+let pr=prompt("Price:",p.price)
+let c=prompt("Category:",p.category)
+let s=prompt("Stock:",p.stock)
+
+if(!n||!pr||!c||!s)return
+
+if(confirm("Change image?")){
+let input=document.createElement("input")
+input.type="file"
+
+input.onchange=function(){
+let reader=new FileReader()
+reader.onload=e=>{
+products[i]={name:n,price:parseInt(pr),category:c,stock:parseInt(s),image:e.target.result}
+saveProducts(products)
+displayProducts()
+loadAdminProducts()
+}
+reader.readAsDataURL(input.files[0])
+}
+input.click()
+}else{
+products[i]={...p,name:n,price:parseInt(pr),category:c,stock:parseInt(s)}
+saveProducts(products)
+displayProducts()
+loadAdminProducts()
+}
+}
+</script>
+
+</body>
+</html>
